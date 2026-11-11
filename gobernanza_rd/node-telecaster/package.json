@@ -1,0 +1,49 @@
+{
+  "name": "gobernanza-rd-telecaster",
+  "version": "1.0.0",
+  "description": "GobernanzaRD Node Telecaster - Magic Algorithm Courage Broadcasting Service",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "jest",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "gobernanza",
+    "dominican-republic",
+    "telecaster",
+    "broadcasting",
+    "notifications",
+    "governance"
+  ],
+  "author": "GobernanzaRD Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "redis": "^4.6.10",
+    "bullmq": "^5.7.0",
+    "axios": "^1.6.2",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1",
+    "node-cron": "^3.0.3",
+    "ws": "^8.14.2",
+    "protobufjs": "^7.2.5",
+    "protobuf": "^3.21.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

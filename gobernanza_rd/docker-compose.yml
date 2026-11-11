@@ -1,0 +1,425 @@
+version: '3.8'
+
+services:
+  # ==================== INFRASTRUCTURE ====================
+  
+  postgres:
+    image: postgres:16-alpine
+    container_name: gobernanza-postgres
+    environment:
+      POSTGRES_DB: gobernanza_rd
+      POSTGRES_USER: gobernanza
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gobernanza_secure_2024}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gobernanza -d gobernanza_rd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  redis:
+    image: redis:7-alpine
+    container_name: gobernanza-redis
+    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 512M
+
+  # ==================== LOCAL AI MODELS ====================
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gobernanza-ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+      OLLAMA_ORIGINS: "*"
+      OLLAMA_KEEP_ALIVE: 24h
+      OLLAMA_NUM_PARALLEL: 4
+      OLLAMA_MAX_LOADED_MODELS: 3
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./models:/models
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 24G
+        reservations:
+          memory: 16G
+    # GPU support (uncomment if NVIDIA GPU available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  llama-cpp:
+    image: ghcr.io/ggerganov/llama.cpp:server-cuda-latest
+    container_name: gobernanza-llama-cpp
+    command: >
+      -m /models/llama-3.1-70b-instruct-q4_k_m.gguf
+      -c 8192
+      -b 512
+      --host 0.0.0.0
+      --port 8080
+      --parallel 4
+      --ctx-size 8192
+      --n-gpu-layers -1
+    volumes:
+      - ./models:/models
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 16G
+    # GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: gobernanza-vllm
+    command: >
+      --model /models/nemotron-3-ultra
+      --tensor-parallel-size 1
+      --max-model-len 8192
+      --gpu-memory-utilization 0.9
+      --host 0.0.0.0
+      --port 8000
+      --api-key ${VLLM_API_KEY:-gobernanza_vllm_key}
+    volumes:
+      - ./models:/models
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 24G
+        reservations:
+          memory: 20G
+    # GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ==================== PYTHON BACKEND ====================
+
+  python-api:
+    build:
+      context: ../gobernanza_rd
+      dockerfile: Dockerfile.python
+    container_name: gobernanza-python-api
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://gobernanza:${POSTGRES_PASSWORD:-gobernanza_secure_2024}@postgres:5432/gobernanza_rd
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_URL=http://ollama:11434
+      - LLAMA_CPP_URL=http://llama-cpp:8080
+      - VLLM_URL=http://vllm:8000
+      - JWT_SECRET=${JWT_SECRET:-gobernanza_rd_jwt_secret_2024}
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      llama-cpp:
+        condition: service_healthy
+      vllm:
+        condition: service_healthy
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    restart: unless-stopped
+
+  # ==================== NODE TELECASTER ====================
+
+  telecaster:
+    build:
+      context: ./node-telecaster
+      dockerfile: Dockerfile
+    container_name: gobernanza-telecaster
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - JWT_SECRET=${JWT_SECRET:-gobernanza_rd_jwt_secret_2024}
+      - PYTHON_BACKEND_URL=http://python-api:8000
+      - PYTHON_BACKEND_API_KEY=${PYTHON_API_KEY:-gobernanza_python_key}
+      
+      # Telecom
+      - NP_API_URL=https://np.indotel.gob.do/api
+      - NP_API_KEY=${NP_API_KEY}
+      - CLARO_API_URL=https://api.claro.com.do
+      - CLARO_USERNAME=${CLARO_USERNAME}
+      - CLARO_PASSWORD=${CLARO_PASSWORD}
+      - ALTICE_API_URL=https://api.altice.com.do
+      - ALTICE_API_KEY=${ALTICE_API_KEY}
+      - VIVA_API_URL=https://api.viva.com.do
+      - VIVA_API_KEY=${VIVA_API_KEY}
+      
+      # SMS Aggregator
+      - SMS_PROVIDER=twilio
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM}
+      
+      # WhatsApp
+      - WHATSAPP_PROVIDER=twilio
+      - WHATSAPP_WEBHOOK_URL=https://api.gobernanza.gob.do/webhook/whatsapp
+      - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
+      
+      # USSD
+      - USSD_PROVIDER=africastalking
+      - AT_USERNAME=${AT_USERNAME}
+      - AT_API_KEY=${AT_API_KEY}
+      - AT_SHORT_CODE=462
+      
+      # Cell Broadcast
+      - CB_API_URL=https://cb.indotel.gob.do/api
+      - CB_API_KEY=${CB_API_KEY}
+      
+      # Digital Wallets
+      - APPLE_PAY_MERCHANT_ID=${APPLE_PAY_MERCHANT_ID}
+      - APPLE_PAY_TEAM_ID=${APPLE_PAY_TEAM_ID}
+      - APPLE_PAY_KEY_ID=${APPLE_PAY_KEY_ID}
+      - APPLE_PAY_PRIVATE_KEY_PATH=/certs/apple-pay.key
+      - APPLE_PAY_CERT_PATH=/certs/apple-pay.pem
+      - GOOGLE_PAY_MERCHANT_ID=${GOOGLE_PAY_MERCHANT_ID}
+      - GOOGLE_PAY_GATEWAY_MERCHANT_ID=${GOOGLE_PAY_GATEWAY_MERCHANT_ID}
+      
+      # Airport
+      - AIRPORT_QR_SECRET=${AIRPORT_QR_SECRET}
+      - AIRPORT_NFC_SECRET=${AIRPORT_NFC_SECRET}
+      - DGII_API_URL=${DGII_API_URL}
+      - JCE_API_URL=${JCE_API_URL}
+      - MIGRATION_API_URL=${MIGRATION_API_URL}
+      - CUSTOMS_API_URL=${CUSTOMS_API_URL}
+      
+      # CORS
+      - CORS_ORIGIN=https://app.gobernanza.gob.do,https://admin.gobernanza.gob.do
+      
+      # Monitoring
+      - LOG_LEVEL=info
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      python-api:
+        condition: service_started
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    restart: unless-stopped
+
+  # ==================== MONITORING ====================
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: gobernanza-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: gobernanza-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-gobernanza_grafana_2024}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ==================== REVERSE PROXY ====================
+
+  nginx:
+    image: nginx:alpine
+    container_name: gobernanza-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certs:/etc/nginx/certs:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - python-api
+      - telecaster
+      - grafana
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  # ==================== BACKUP ====================
+
+  backup:
+    image: postgres:16-alpine
+    container_name: gobernanza-backup
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=gobernanza_rd
+      - POSTGRES_USER=gobernanza
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-gobernanza_secure_2024}
+      - BACKUP_SCHEDULE=0 2 * * *
+      - BACKUP_RETENTION_DAYS=30
+      - S3_BUCKET=${BACKUP_S3_BUCKET}
+      - S3_REGION=${BACKUP_S3_REGION}
+      - AWS_ACCESS_KEY_ID=${BACKUP_AWS_ACCESS_KEY}
+      - AWS_SECRET_ACCESS_KEY=${BACKUP_AWS_SECRET_KEY}
+    volumes:
+      - backup_data:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    command: sh -c "chmod +x /backup.sh && /backup.sh"
+    networks:
+      - gobernanza-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  ollama_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  backup_data:
+    driver: local
+
+networks:
+  gobernanza-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
