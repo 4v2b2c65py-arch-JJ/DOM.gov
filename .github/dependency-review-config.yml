@@ -1,0 +1,15 @@
+# Dependency Review Configuration
+# https://github.com/actions/dependency-review-action#configuration-options
+
+fail-on-severity: high
+allow-ghsas:
+  # Allow specific known vulnerabilities that are false positives or accepted risks
+  # Format: GHSA-xxxx-xxxx-xxxx
+  
+config-file: '.github/dependency-review-config.yml'
+
+# Optional: Fail on specific license types
+# fail-on-licenses: ['GPL-3.0', 'AGPL-3.0']
+
+# Optional: Allow specific licenses
+# allow-licenses: ['MIT', 'Apache-2.0', 'BSD-3-Clause', 'ISC']

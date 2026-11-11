@@ -2,36 +2,36 @@
 
 Dominican Republic governance platform implementing Japanese Society 5.0 / Agile Governance models with DR-specific adaptations.
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        DOM.gov Platform                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  Frontend (Vercel)          │  Backend (Local/Docker)          │
-│  ┌─────────────────────┐    │  ┌─────────────────────────────┐ │
-│  │ Next.js App         │◄───│  │ Python FastAPI (8000)       │ │
-│  │ - Citizen Portal    │    │  │ - Auth / Identity           │ │
-│  │ - Admin Dashboard   │    │  │ - Merits / Payments         │ │
-│  │ - Quest / Veeduría  │    │  │ - Governance / Consensus    │ │
-│  │ - Airport Easy Pass │    │  │ - Audit Trail               │ │
-│  └─────────────────────┘    │  └─────────────────────────────┘ │
-│                             │  ┌─────────────────────────────┐ │
-│                             │  │ Node.js Telecaster (3001)   │ │
-│                             │  │ - WhatsApp / SMS / USSD     │ │
-│                             │  │ - Push / WebSocket          │ │
-│                             │  │ - Airport Clearance         │ │
-│                             │  └─────────────────────────────┘ │
-│                             │  ┌─────────────────────────────┐ │
-│                             │  │ Local AI Models             │ │
-│                             │  │ - Ollama (llama3.1:70b)     │ │
-│                             │  │ - llama.cpp                 │ │
-│                             │  │ - vLLM (Nemotron-3-Ultra)   │ │
-│                             │  └─────────────────────────────┘ │
+│  Frontend (Vercel)           │  Backend (Local/Docker)          │
+│  ┌─────────────────────┐     │  ┌─────────────────────────────┐ │
+│  │ Vue 3 + Vite        │◄───►│  │ Python FastAPI (8000)       │ │
+│  │ - Citizen Portal    │     │  │ - Auth / Identity           │ │
+│  │ - Admin Dashboard   │     │  │ - Merits / Payments         │ │
+│  │ - Quest / Veeduría  │     │  │ - Governance / Consensus    │ │
+│  │ - Airport Easy Pass │     │  │ - Audit Trail               │ │
+│  └─────────────────────┘     │  └─────────────────────────────┘ │
+│                              │  ┌─────────────────────────────┐ │
+│                              │  │ Node.js Telecaster (3001)   │ │
+│                              │  │ - WhatsApp / SMS / USSD     │ │
+│                              │  │ - Push / WebSocket          │ │
+│                              │  │ - Airport Clearance         │ │
+│                              │  └─────────────────────────────┘ │
+│                              │  ┌─────────────────────────────┐ │
+│                              │  │ Local AI Models             │ │
+│                              │  │ - Ollama (llama3.1:70b)     │ │
+│                              │  │ - llama.cpp                 │ │
+│                              │  │ - vLLM (Nemotron-3-Ultra)   │ │
+│                              │  └─────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Features
+## ✨ Features
 
 ### Core Governance
 - **CARACOL Dual-Loop**: Quarterly strategic + daily tactical governance
@@ -79,9 +79,31 @@ Dominican Republic governance platform implementing Japanese Society 5.0 / Agile
 - **Fairness Monitor**: Real-time equity metrics across 5 domains
 - **Audit Trail**: Hash-chained logs anchored to Supreme Court, UN OICT, ICC, Bitcoin, Ethereum, Polygon
 
-## Quick Start
+## 🚀 Quick Start
 
-### Local Development (Docker)
+### 1. Frontend (Vercel) - Deploy in 2 minutes
+
+```bash
+# Option A: One-click deploy (recommended)
+# Click "Deploy with Vercel" button below or visit:
+# https://vercel.com/new/clone?repository-url=https://github.com/4v2b2c65py-arch-JJ/DOM.gov&project-name=dom-gov&repository-name=DOM.gov
+
+# Option B: Vercel CLI
+cd frontend
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+**Required Vercel Environment Variables:**
+```bash
+VITE_API_URL=https://api.dom.gov          # Your Python backend URL
+VITE_WS_URL=wss://ws.dom.gov/ws           # Your Telecaster WebSocket URL
+VITE_TELECASTER_URL=https://ws.dom.gov    # Your Telecaster REST URL
+```
+
+### 2. Backend (Local/Server) - Docker
+
 ```bash
 # Clone and configure
 git clone https://github.com/4v2b2c65py-arch-JJ/DOM.gov.git
@@ -95,21 +117,107 @@ cp .env.example .env
 docker-compose up -d
 
 # Access services
-# Frontend: http://localhost:3000 (after Vercel deploy)
+# Frontend: https://dom.gov (after Vercel deploy)
 # Python API: http://localhost:8000
 # Telecaster: http://localhost:3001
 # Grafana: http://localhost:3000 (admin/gobernanza_grafana_2024)
 # Prometheus: http://localhost:9090
 ```
 
-### Environment Variables
+### 3. Local Development
+
 ```bash
-# Required for production
+# Frontend
+cd frontend
+npm install
+npm run dev          # http://localhost:5173
+
+# Backend (requires Docker for databases)
+docker-compose up -d postgres redis ollama llama-cpp vllm
+cd gobernanza_rd
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# Telecaster
+cd node-telecaster
+npm install
+npm run dev          # http://localhost:3001
+```
+
+## 📁 Project Structure
+
+```
+DOM.gov/
+├── frontend/                    # Vue 3 + Vite (Vercel)
+│   ├── src/
+│   │   ├── api/                 # API client
+│   │   ├── components/          # Header, Footer, UI components
+│   │   ├── stores/              # Pinia stores (auth, merits, airport)
+│   │   ├── views/               # Pages (Home, Dashboard, Merits, Airport, etc.)
+│   │   ├── router/              # Vue Router
+│   │   ├── App.vue              # Root component
+│   │   └── main.ts              # Entry point
+│   ├── public/                  # Static assets (manifest, favicon)
+│   ├── tailwind.config.js       # Tailwind CSS config
+│   ├── vercel.json              # Vercel deployment config
+│   └── package.json
+│
+├── gobernanza_rd/               # Python FastAPI Backend
+│   ├── app/                     # FastAPI application
+│   ├── models/                  # SQLAlchemy models
+│   ├── consensus/               # Multi-model consensus engine
+│   ├── auth/                    # Magic link auth, progressive identity
+│   ├── payments/                # Auto-fill payments, wallet service
+│   ├── address/                 # Zero-address delivery resolution
+│   ├── telecom/                 # DR telecom integration
+│   ├── governance/              # Anti-faction, FGA, circuit breakers
+│   ├── local_models/            # Ollama, llama.cpp, vLLM runners
+│   └── Dockerfile.python
+│
+├── node-telecaster/             # Node.js Communication Service
+│   ├── src/
+│   │   ├── services/            # Broadcast, Alert, Notification, WS, Airport
+│   │   ├── routes/              # API endpoints
+│   │   ├── utils/               # Logger, Redis, BullMQ
+│   │   ├── config.js            # All configuration
+│   │   └── index.js             # Entry point
+│   └── Dockerfile
+│
+├── docker-compose.yml           # Full stack orchestration
+├── .github/workflows/           # CI/CD pipelines
+└── README.md
+```
+
+## 🔧 Environment Variables
+
+### Frontend (.env.local for local, Vercel dashboard for production)
+```bash
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:3001/ws
+VITE_TELECASTER_URL=http://localhost:3001
+VITE_APP_NAME=DOM.gov
+VITE_APP_VERSION=1.0.0
+```
+
+### Backend (.env)
+```bash
+# Database
 POSTGRES_PASSWORD=secure_password
-JWT_SECRET=your_jwt_secret
+DATABASE_URL=postgresql+asyncpg://gobernanza:password@localhost:5432/gobernanza_rd
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# JWT
+JWT_SECRET=your_jwt_secret_change_in_production
 PYTHON_API_KEY=python_backend_key
 
-# Telecom
+# Local AI Models
+OLLAMA_URL=http://localhost:11434
+LLAMA_CPP_URL=http://localhost:8080
+VLLM_URL=http://localhost:8000
+
+# Telecom (DR)
 NP_API_KEY=indotel_np_key
 CLARO_USERNAME=xxx
 CLARO_PASSWORD=xxx
@@ -118,11 +226,8 @@ VIVA_API_KEY=xxx
 TWILIO_ACCOUNT_SID=xxx
 TWILIO_AUTH_TOKEN=xxx
 TWILIO_FROM_NUMBER=xxx
-
-# WhatsApp
+TWILIO_WHATSAPP_FROM=xxx
 WHATSAPP_VERIFY_TOKEN=xxx
-
-# USSD
 AT_USERNAME=xxx
 AT_API_KEY=xxx
 
@@ -134,42 +239,87 @@ GOOGLE_PAY_MERCHANT_ID=xxx
 AIRPORT_QR_SECRET=xxx
 DGII_API_URL=https://api.dgii.gob.do
 JCE_API_URL=https://api.jce.gob.do
+MIGRATION_API_URL=https://api.migracion.gob.do
 
 # Monitoring
 GRAFANA_PASSWORD=secure_password
 ```
 
-## Project Structure
+## 🌐 Deployment
 
-```
-DOM.gov/
-├── gobernanza_rd/              # Python FastAPI Backend
-│   ├── app/                    # FastAPI application
-│   ├── models/                 # SQLAlchemy models
-│   ├── consensus/              # Multi-model consensus engine
-│   ├── auth/                   # Magic link auth, progressive identity
-│   ├── payments/               # Auto-fill payments, wallet service
-│   ├── address/                # Zero-address delivery resolution
-│   ├── telecom/                # DR telecom integration
-│   ├── governance/             # Anti-faction, FGA, circuit breakers
-│   ├── local_models/           # Ollama, llama.cpp, vLLM runners
-│   └── Dockerfile.python
-│
-├── node-telecaster/            # Node.js Communication Service
-│   ├── src/
-│   │   ├── services/           # Broadcast, Alert, Notification, WS, Airport
-│   │   ├── routes/             # API endpoints
-│   │   ├── utils/              # Logger, Redis, BullMQ
-│   │   ├── config.js           # All configuration
-│   │   └── index.js            # Entry point
-│   └── Dockerfile
-│
-├── docker-compose.yml          # Full stack orchestration
-├── .github/workflows/          # CI/CD pipelines
-└── README.md
+### Vercel (Frontend)
+1. Connect GitHub repo to Vercel
+2. Set Framework Preset: **Vite**
+3. Build Command: `npm run build`
+4. Output Directory: `dist`
+5. Add Environment Variables (see above)
+4. Deploy
+
+### Custom Domain
+```bash
+# In Vercel dashboard → Settings → Domains
+# Add: dom.gov, www.dom.gov, api.dom.gov, ws.dom.gov
+
+# DNS Records (at your registrar)
+# Type    Name    Value
+# A       @       76.76.21.21          # Vercel IP
+# CNAME   www     cname.vercel-dns.com
+# CNAME   api     your-server.com      # Your backend server
+# CNAME   ws      your-server.com      # Your backend server
 ```
 
-## API Endpoints
+### Backend Server (VPS/EC2/DigitalOcean)
+```bash
+# 1. Provision server (Ubuntu 22.04+, 4GB+ RAM, 50GB+ SSD)
+# 2. Install Docker & Docker Compose
+# 3. Clone repo and configure .env
+# 4. Run docker-compose up -d
+# 5. Setup Nginx reverse proxy with SSL (Let's Encrypt)
+# 6. Configure firewall (ufw allow 80,443,22)
+
+# Nginx config example:
+server {
+    listen 80;
+    server_name api.dom.gov ws.dom.gov;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.dom.gov;
+    ssl_certificate /etc/letsencrypt/live/api.dom.gov/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.dom.gov/privkey.pem;
+    
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ws.dom.gov;
+    ssl_certificate /etc/letsencrypt/live/ws.dom.gov/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ws.dom.gov/privkey.pem;
+    
+    location /ws {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+    
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+## 🔌 API Endpoints
 
 ### Python Backend (8000)
 ```
@@ -202,29 +352,7 @@ POST   /api/airport/verify/qr         # Verify QR code
 WS     /ws                            # WebSocket connection
 ```
 
-## Deployment
-
-### Vercel (Frontend)
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy frontend
-cd frontend  # (create Next.js app in separate repo or subfolder)
-vercel --prod
-```
-
-### Local/Server (Backend)
-```bash
-# Using Docker Compose (recommended)
-docker-compose up -d
-
-# Or manual
-cd gobernanza_rd && pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000
-cd node-telecaster && npm install && node src/index.js
-```
-
-## Governance Model
+## 🏛️ Governance Model
 
 ### Identity Levels
 | Level | Name | Capabilities |
@@ -241,12 +369,27 @@ cd node-telecaster && npm install && node src/index.js
 - **Housing**: 50,000 merits (MIVHED subsidy)
 - **Appliance**: 5,000 merits (INFOTEP certified)
 
-## License
+## 📄 License
 
 MIT License - See LICENSE file for details.
 
-## Contact
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📞 Contact
 
 - **Repository**: https://github.com/4v2b2c65py-arch-JJ/DOM.gov
 - **Issues**: GitHub Issues
 - **Governance**: FGA (Fundación de Gobernanza Algorítmica)
+- **Email**: soporte@dom.gov
+
+---
+
+**Built with ❤️ for República Dominicana** 🇩🇴
+
+*Society 5.0 • Anti-Facción • Meritocracia • Identidad Soberana*
