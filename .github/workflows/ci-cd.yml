@@ -183,11 +183,10 @@ jobs:
 
       - name: Start test services
         run: |
-          docker-compose -f docker-compose.test.yml up -d postgres redis
-          sleep 10
+          docker compose -f docker-compose.test.yml up -d --wait postgres redis
 
       - name: Run tests
-        run: pytest --cov=app --cov=models --cov=consensus --cov=auth --cov=payments --cov=address --cov=telecom --cov=governance -v
+        run: pytest --cov=app --cov=models --cov=consensus --cov=auth --cov=payments --cov=address --cov=telecom --cov=governance --cov-report=xml -v
         env:
           DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
           REDIS_URL: redis://localhost:6379/0
@@ -201,12 +200,16 @@ jobs:
         with:
           files: ./coverage.xml
           flags: backend
+          fail_ci_if_error: false
 
   backend-build:
     name: Build Backend Docker Image
     runs-on: ubuntu-latest
     needs: backend-test
     if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -271,6 +274,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: telecaster-lint
     if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
