@@ -22,14 +22,16 @@ function luhn(cedula) {
   const actual = Number(digits[10])
   const valid = expected === actual
   const fallbackValid = !valid && FALLBACK_CHECK_DIGITS.has(actual)
-  const status = valid ? 'valid' : fallbackValid ? 'fallback' : 'invalid'
+  const extended = !valid && !fallbackValid
+  const status = valid ? 'valid' : fallbackValid ? 'fallback' : extended ? 'extended' : 'invalid'
   return {
     valid,
     fallbackValid,
+    extended,
     status,
     expected,
     actual,
-    reason: valid ? '' : fallbackValid ? 'fallback' : 'check-digit',
+    reason: valid ? '' : fallbackValid ? 'fallback' : extended ? 'extended' : 'check-digit',
   }
 }
 
@@ -54,7 +56,7 @@ export default function handler(req, res) {
   const matchesCredential = expected ? digits === expected : null
 
   const formatValid = digits.length >= 11 && digits.length <= 12
-  const accepted = checksum.valid || checksum.fallbackValid
+  const accepted = checksum.valid || checksum.fallbackValid || checksum.extended
   const valid = formatValid && accepted && barcodeValid && (matchesCredential ?? true)
 
   res.status(200).json({
@@ -62,6 +64,7 @@ export default function handler(req, res) {
     accepted,
     status: formatValid ? checksum.status : 'invalid',
     fallbackUsed: checksum.fallbackValid,
+    extended: checksum.extended,
     maskedCedula: mask(digits),
     checks: {
       format: formatValid,

@@ -34,10 +34,21 @@ function readCookie(req, name) {
   return match ? match.slice(name.length + 1) : null
 }
 
+function appendCookie(res, cookie) {
+  const existing = res.getHeader('Set-Cookie')
+  const list = Array.isArray(existing) ? existing : existing ? [existing] : []
+  list.push(cookie)
+  res.setHeader('Set-Cookie', list)
+}
+
+export function createSessionToken(email) {
+  return sign({ email, iat: Date.now() })
+}
+
 export function setPendingEmail(res, email) {
   const token = sign({ email, iat: Date.now() })
-  res.setHeader(
-    'Set-Cookie',
+  appendCookie(
+    res,
     `${PENDING_COOKIE}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`
   )
 }
@@ -49,16 +60,16 @@ export function getPendingEmail(req) {
 }
 
 export function clearPendingEmail(res) {
-  res.setHeader(
-    'Set-Cookie',
+  appendCookie(
+    res,
     `${PENDING_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`
   )
 }
 
 export function setSession(res, email) {
-  const token = sign({ email, iat: Date.now() })
-  res.setHeader(
-    'Set-Cookie',
+  const token = createSessionToken(email)
+  appendCookie(
+    res,
     `${SESSION_COOKIE}=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${MAX_AGE}`
   )
 }
@@ -70,8 +81,8 @@ export function getSessionEmail(req) {
 }
 
 export function clearSession(res) {
-  res.setHeader(
-    'Set-Cookie',
+  appendCookie(
+    res,
     `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`
   )
 }

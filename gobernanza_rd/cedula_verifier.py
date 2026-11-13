@@ -20,6 +20,7 @@ from utils.cedula_cross_validator import (
     load_credential,
     verify_with_local_ai,
 )
+from utils.cedula_registry import is_dynamic_fallback_enabled, rows
 
 app = FastAPI(title="DOM.gov Cédula Cross-Verifier", version="1.0.0")
 
@@ -68,3 +69,9 @@ def verify(request: VerifyRequest) -> dict[str, Any]:
 def read(request: ReadRequest) -> dict[str, Any]:
     """Safe reader for scans/OCR; never raises."""
     return parse_cedula(request.value)
+
+
+@app.get("/registry")
+def registry() -> dict[str, Any]:
+    """Return the persisted check-digit rows."""
+    return {"dynamic_fallback": is_dynamic_fallback_enabled(), "digits": rows()}

@@ -1,5 +1,6 @@
 import {
   clearPendingEmail,
+  createSessionToken,
   getPendingEmail,
   setSession,
   userFromEmail,
@@ -25,5 +26,10 @@ export default function handler(req, res) {
 
   clearPendingEmail(res)
   setSession(res, email)
-  res.status(200).json(userFromEmail(email))
+  const sessionToken = createSessionToken(email)
+  res.status(200).json({
+    user: userFromEmail(email),
+    access_token: sessionToken,
+    refresh_token: sessionToken,
+  })
 }

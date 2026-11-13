@@ -114,6 +114,7 @@ def cross_validate(
         "accepted": accepted,
         "status": verification["status"],
         "fallback_used": verification["fallback_valid"],
+        "extended": verification["extended"],
         "masked_cedula": mask_cedula(actual_cedula),
         "checks": {
             "format": is_valid_cedula(actual_cedula),

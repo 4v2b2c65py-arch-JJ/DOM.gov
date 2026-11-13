@@ -34,9 +34,19 @@ def is_valid_cedula(value: str | None) -> bool:
 
 
 def permitted_fallback_check_digits() -> set[int]:
-    """Check digits accepted as a non-Luhn fallback (default: 7)."""
+    """Check digits accepted as a non-Luhn fallback.
+
+    Combines the env override with the persistent registry so digits observed
+    in earlier reads (for example 9) remain accepted.
+    """
     raw = os.getenv(FALLBACK_CHECK_DIGITS_ENV, "")
     digits = {int(char) for char in raw if char.isdigit()}
+    try:
+        from utils.cedula_registry import permitted_digits
+
+        digits |= permitted_digits()
+    except Exception:  # noqa: BLE001 - registry is optional
+        pass
     return digits or set(DEFAULT_FALLBACK_CHECK_DIGITS)
 
 
@@ -60,62 +70,79 @@ def validate_cedula_with_fallback(cedula: str) -> dict[str, Any]:
     """Validate a cédula without ever raising.
 
     Returns a dict with:
-      accepted       -- Luhn valid OR permitted fallback
+      accepted       -- Luhn valid, permitted fallback, or newly recorded row
       valid          -- strict Luhn check digit matched
       fallback_valid -- check digit is in the permitted fallback set
-      status         -- "valid" | "fallback" | "invalid"
+      extended       -- unknown check digit recorded as a new row
+      status         -- "valid" | "fallback" | "extended" | "invalid"
       expected/actual-- check digits
+      registry_row   -- the recorded row when extended
       error          -- non-empty when the value could not be read
     """
+    empty_result = {
+        "accepted": False,
+        "valid": False,
+        "fallback_valid": False,
+        "extended": False,
+        "status": "invalid",
+        "expected": None,
+        "actual": None,
+        "registry_row": None,
+        "error": "",
+    }
+
     try:
         digits = normalize_cedula(cedula)
         if not digits:
-            return {
-                "accepted": False,
-                "valid": False,
-                "fallback_valid": False,
-                "status": "invalid",
-                "expected": None,
-                "actual": None,
-                "error": "empty",
-            }
+            return {**empty_result, "error": "empty"}
 
         if not is_valid_cedula(digits):
-            return {
-                "accepted": False,
-                "valid": False,
-                "fallback_valid": False,
-                "status": "invalid",
-                "expected": None,
-                "actual": None,
-                "error": "length",
-            }
+            return {**empty_result, "error": "length"}
 
         expected = luhn_check_digit(digits)
         actual = int(digits[10])
         valid = expected == actual
-        fallback_valid = (not valid) and actual in permitted_fallback_check_digits()
-        status = "valid" if valid else ("fallback" if fallback_valid else "invalid")
+
+        registry_row = None
+        if valid:
+            status = "valid"
+            fallback_valid = False
+            extended = False
+        elif actual in permitted_fallback_check_digits():
+            status = "fallback"
+            fallback_valid = True
+            extended = False
+        else:
+            try:
+                from utils.cedula_registry import is_dynamic_fallback_enabled, record_digit
+
+                if is_dynamic_fallback_enabled():
+                    registry_row = record_digit(actual, source="scan")
+                    status = "extended"
+                    fallback_valid = True
+                    extended = True
+                else:
+                    status = "invalid"
+                    fallback_valid = False
+                    extended = False
+            except Exception:  # noqa: BLE001 - never crash a read
+                status = "invalid"
+                fallback_valid = False
+                extended = False
 
         return {
-            "accepted": valid or fallback_valid,
+            "accepted": status in ("valid", "fallback", "extended"),
             "valid": valid,
             "fallback_valid": fallback_valid,
+            "extended": extended,
             "status": status,
             "expected": expected,
             "actual": actual,
+            "registry_row": registry_row,
             "error": "",
         }
     except Exception as exc:  # noqa: BLE001 - readers must never crash
-        return {
-            "accepted": False,
-            "valid": False,
-            "fallback_valid": False,
-            "status": "invalid",
-            "expected": None,
-            "actual": None,
-            "error": str(exc),
-        }
+        return {**empty_result, "error": str(exc)}
 
 
 def is_acceptable_cedula(cedula: str) -> bool:
@@ -132,9 +159,11 @@ def parse_cedula(raw: Any) -> dict[str, Any]:
             "accepted": False,
             "valid": False,
             "fallback_valid": False,
+            "extended": False,
             "status": "invalid",
             "expected": None,
             "actual": None,
+            "registry_row": None,
             "error": str(exc),
         }
 
