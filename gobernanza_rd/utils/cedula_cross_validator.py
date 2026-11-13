@@ -23,6 +23,7 @@ from utils.cedula import (
     is_valid_cedula,
     mask_cedula,
     normalize_cedula,
+    validate_cedula_with_fallback,
 )
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -46,25 +47,19 @@ _load_env_file(BACKEND_ROOT / ".env.local")
 
 
 def luhn_checksum(cedula: str) -> dict[str, Any]:
-    """Validate the Dominican cédula check digit (Luhn mod-10)."""
-    digits = normalize_cedula(cedula)
-    if len(digits) not in (CEDULA_MIN_DIGITS, CEDULA_MAX_DIGITS):
-        return {"valid": False, "expected": None, "actual": None, "reason": "length"}
+    """Validate the cédula check digit, allowing the permitted fallback.
 
-    total = 0
-    for index in range(10):
-        product = int(digits[index]) * (1 if index % 2 == 0 else 2)
-        if product > 9:
-            product = product // 10 + product % 10
-        total += product
-
-    expected = (10 - (total % 10)) % 10
-    actual = int(digits[10])
+    Never raises: unreadable input returns ``status="invalid"``.
+    """
+    result = validate_cedula_with_fallback(cedula)
     return {
-        "valid": expected == actual,
-        "expected": expected,
-        "actual": actual,
-        "reason": "" if expected == actual else "check-digit",
+        "valid": result["valid"],
+        "fallback_valid": result["fallback_valid"],
+        "status": result["status"],
+        "expected": result["expected"],
+        "actual": result["actual"],
+        "reason": result["error"]
+        or ("" if result["valid"] else ("fallback" if result["fallback_valid"] else "check-digit")),
     }
 
 
@@ -99,28 +94,30 @@ def cross_validate(
     candidate_barcode: str,
     credential: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run deterministic cross-validation checks."""
+    """Run deterministic cross-validation checks without raising."""
     cred = credential or load_credential()
     actual_cedula = normalize_cedula(candidate_cedula)
     expected_cedula = normalize_cedula(cred.get("cedula"))
 
-    checksum = luhn_checksum(actual_cedula)
+    verification = validate_cedula_with_fallback(actual_cedula)
     barcode = validate_barcode(candidate_barcode)
     matches_credential = actual_cedula == expected_cedula if expected_cedula else None
 
-    valid = (
-        is_valid_cedula(actual_cedula)
-        and checksum["valid"]
+    accepted = (
+        verification["accepted"]
         and barcode["valid"]
         and matches_credential is not False
     )
 
     return {
-        "valid": valid,
+        "valid": accepted,
+        "accepted": accepted,
+        "status": verification["status"],
+        "fallback_used": verification["fallback_valid"],
         "masked_cedula": mask_cedula(actual_cedula),
         "checks": {
             "format": is_valid_cedula(actual_cedula),
-            "check_digit": checksum,
+            "check_digit": verification,
             "barcode": barcode,
             "matches_local_credential": matches_credential,
         },
@@ -139,7 +136,8 @@ def verify_with_local_ai(
 
     prompt = (
         "You are a Dominican Republic identity cross-validator. "
-        "The official Luhn check digit is authoritative.\n"
+        "The official Luhn check digit is authoritative; a permitted fallback "
+        "check digit (default 7) is accepted and marked status='fallback'.\n"
         f"Deterministic result: {json.dumps(det, ensure_ascii=False)}\n"
         f"Cédula digits (local only): {normalize_cedula(candidate_cedula)}\n"
         f"Cédula (masked): {det.get('masked_cedula')}\n"

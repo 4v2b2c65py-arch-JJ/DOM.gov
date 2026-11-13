@@ -3,7 +3,7 @@
  * Communicates with Python FastAPI backend and Node.js Telecaster
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000');
 const TELECASTER_BASE = import.meta.env.VITE_TELECASTER_URL || 'http://localhost:3001';
 
 class ApiClient {
@@ -43,6 +43,7 @@ class ApiClient {
     const response = await fetch(`${API_BASE}${url}`, {
       ...options,
       headers,
+      credentials: 'include',
     });
 
     if (response.status === 401 && this.refreshToken) {
@@ -77,6 +78,7 @@ class ApiClient {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: this.refreshToken }),
+        credentials: 'include',
       });
 
       if (!response.ok) return false;

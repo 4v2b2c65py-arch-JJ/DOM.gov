@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from utils.cedula import mask_cedula, normalize_cedula
+from utils.cedula import mask_cedula, normalize_cedula, parse_cedula
 from utils.cedula_cross_validator import (
     cross_validate,
     load_credential,
@@ -35,6 +35,10 @@ app.add_middleware(
 class VerifyRequest(BaseModel):
     cedula: str
     barcode: str | None = None
+
+
+class ReadRequest(BaseModel):
+    value: str
 
 
 @app.get("/health")
@@ -58,3 +62,9 @@ def verify(request: VerifyRequest) -> dict[str, Any]:
     deterministic = cross_validate(request.cedula, request.barcode or "")
     local_ai = verify_with_local_ai(request.cedula, request.barcode or "", deterministic)
     return {"deterministic": deterministic, "local_ai": local_ai}
+
+
+@app.post("/read")
+def read(request: ReadRequest) -> dict[str, Any]:
+    """Safe reader for scans/OCR; never raises."""
+    return parse_cedula(request.value)

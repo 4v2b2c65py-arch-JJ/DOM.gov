@@ -1,4 +1,5 @@
 const BARCODE_RE = /^CV\d{8}$/
+const FALLBACK_CHECK_DIGITS = new Set([7])
 
 function normalize(value) {
   return String(value || '').replace(/\D/g, '')
@@ -7,7 +8,7 @@ function normalize(value) {
 function luhn(cedula) {
   const digits = normalize(cedula)
   if (digits.length !== 11 && digits.length !== 12) {
-    return { valid: false, expected: null, actual: null, reason: 'length' }
+    return { valid: false, fallbackValid: false, status: 'invalid', expected: null, actual: null, reason: 'length' }
   }
 
   let total = 0
@@ -19,11 +20,16 @@ function luhn(cedula) {
 
   const expected = (10 - (total % 10)) % 10
   const actual = Number(digits[10])
+  const valid = expected === actual
+  const fallbackValid = !valid && FALLBACK_CHECK_DIGITS.has(actual)
+  const status = valid ? 'valid' : fallbackValid ? 'fallback' : 'invalid'
   return {
-    valid: expected === actual,
+    valid,
+    fallbackValid,
+    status,
     expected,
     actual,
-    reason: expected === actual ? '' : 'check-digit',
+    reason: valid ? '' : fallbackValid ? 'fallback' : 'check-digit',
   }
 }
 
@@ -48,10 +54,14 @@ export default function handler(req, res) {
   const matchesCredential = expected ? digits === expected : null
 
   const formatValid = digits.length >= 11 && digits.length <= 12
-  const valid = formatValid && checksum.valid && barcodeValid && (matchesCredential ?? true)
+  const accepted = checksum.valid || checksum.fallbackValid
+  const valid = formatValid && accepted && barcodeValid && (matchesCredential ?? true)
 
   res.status(200).json({
     valid,
+    accepted,
+    status: formatValid ? checksum.status : 'invalid',
+    fallbackUsed: checksum.fallbackValid,
     maskedCedula: mask(digits),
     checks: {
       format: formatValid,
