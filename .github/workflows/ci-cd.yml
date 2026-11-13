@@ -319,11 +319,16 @@ jobs:
     needs: [backend-build, telecaster-build, frontend-deploy-preview]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     environment: staging
+    env:
+      STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      STAGING_USER: ${{ secrets.STAGING_USER }}
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Deploy to staging server
+        if: env.STAGING_HOST != '' && env.STAGING_USER != '' && env.STAGING_SSH_KEY != ''
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -342,11 +347,16 @@ jobs:
     needs: [backend-build, telecaster-build, frontend-deploy-prod]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
+    env:
+      PROD_HOST: ${{ secrets.PROD_HOST }}
+      PROD_USER: ${{ secrets.PROD_USER }}
+      PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Deploy to production server
+        if: env.PROD_HOST != '' && env.PROD_USER != '' && env.PROD_SSH_KEY != ''
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -360,6 +370,7 @@ jobs:
             docker image prune -f
 
       - name: Health check
+        if: env.PROD_HOST != ''
         run: |
           sleep 30
           curl -f https://api.dom.gov/health/ready || exit 1
