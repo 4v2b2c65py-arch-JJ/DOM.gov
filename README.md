@@ -4,7 +4,7 @@ Dominican Republic governance platform implementing Japanese Society 5.0 / Agile
 
 ## 🌐 Live Portal
 
-**Live now:** https://frontend-amber-alpha-84.vercel.app
+**Live now:** https://frontend-aafo22k6d-jjonthelaptop-5497s-projects.vercel.app
 
 The citizen portal is deployed on Vercel (Vue 3 + Vite). The Python FastAPI backend, Telecaster service, and local AI models run separately as described below.
 
@@ -103,7 +103,7 @@ The citizen portal is deployed on Vercel (Vue 3 + Vite). The Python FastAPI back
 
 ### 1. Frontend (Vercel) - Live Deployment
 
-**Production URL:** https://frontend-amber-alpha-84.vercel.app
+**Production URL:** https://frontend-aafo22k6d-jjonthelaptop-5497s-projects.vercel.app
 
 ```bash
 # Option A: One-click deploy (recommended)
@@ -139,7 +139,7 @@ cp .env.example .env
 docker-compose up -d
 
 # Access services
-# Frontend: https://frontend-amber-alpha-84.vercel.app
+# Frontend: https://frontend-aafo22k6d-jjonthelaptop-5497s-projects.vercel.app
 # Python API: http://localhost:8000
 # Telecaster: http://localhost:3001
 # Grafana: http://localhost:3000 (admin/gobernanza_grafana_2024)
