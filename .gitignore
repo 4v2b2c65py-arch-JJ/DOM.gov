@@ -67,6 +67,8 @@ backup_data/
 
 # Testing
 coverage/
+coverage.xml
+.coverage
 .nyc_output/
 .pytest_cache/
 htmlcov/
