@@ -23,6 +23,8 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const cedula = ref<string | null>(null);
+  const cedulaVerified = ref(false);
 
   const isAuthenticated = computed(() => !!user.value);
   const identityLevel = computed(() => user.value?.identity_level || 0);
@@ -45,12 +47,32 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function loginWithMagicLink(email: string) {
+  async function loginWithMagicLink(email: string, cedulaValue?: string) {
     loading.value = true;
     error.value = null;
     try {
-      await api.requestMagicLink(email);
+      await api.requestMagicLink(email, undefined, cedulaValue);
+      if (cedulaValue) cedula.value = cedulaValue;
       return { success: true };
+    } catch (e: any) {
+      error.value = e.message;
+      return { success: false, error: e.message };
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function verifyCedula(cedulaValue: string, jceVerificationId?: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await api.verifyCedula(cedulaValue, jceVerificationId);
+      cedula.value = cedulaValue;
+      cedulaVerified.value = !!result.cedula_verified;
+      if (user.value) {
+        user.value.identity_level = Math.max(user.value.identity_level, result.identity_level);
+      }
+      return { success: true, verified: !!result.cedula_verified };
     } catch (e: any) {
       error.value = e.message;
       return { success: false, error: e.message };
@@ -112,6 +134,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     loading,
     error,
+    cedula,
+    cedulaVerified,
     isAuthenticated,
     identityLevel,
     capabilities,
@@ -121,6 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchUser,
     loginWithMagicLink,
     verifyMagicLink,
+    verifyCedula,
     logout,
     refreshMeritBalance,
     escalateIdentity,

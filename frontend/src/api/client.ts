@@ -91,10 +91,10 @@ class ApiClient {
 
   // ==================== AUTH ====================
 
-  async requestMagicLink(email: string, deviceFingerprint?: string) {
+  async requestMagicLink(email: string, deviceFingerprint?: string, cedula?: string) {
     return this.request('/api/auth/magic-link', {
       method: 'POST',
-      body: JSON.stringify({ email, device_fingerprint: deviceFingerprint }),
+      body: JSON.stringify({ email, device_fingerprint: deviceFingerprint, cedula }),
     });
   }
 
@@ -302,6 +302,41 @@ class ApiClient {
     return this.request('/api/users/escalate-identity', {
       method: 'POST',
       body: JSON.stringify({ target_level: targetLevel, ...verificationData }),
+    });
+  }
+
+  async verifyCedula(cedula: string, jceVerificationId?: string) {
+    return this.request<{ success: boolean; cedula_verified: boolean; identity_level: number }>(
+      '/api/auth/cedula/verify',
+      {
+        method: 'POST',
+        body: JSON.stringify({ cedula, jce_verification_id: jceVerificationId }),
+      }
+    );
+  }
+
+  // ==================== BANK ACCOUNTS ====================
+
+  async getBankAccounts() {
+    return this.request<{ accounts: Array<Record<string, unknown>> }>('/api/wallet/bank-accounts');
+  }
+
+  async addBankAccount(data: {
+    bank_code: string;
+    account_number: string;
+    account_type?: string;
+    nickname?: string;
+    cedula?: string;
+  }) {
+    return this.request<{ success: boolean; account: Record<string, unknown> }>(
+      '/api/wallet/bank-accounts',
+      { method: 'POST', body: JSON.stringify(data) }
+    );
+  }
+
+  async removeBankAccount(accountId: string) {
+    return this.request<{ success: boolean }>(`/api/wallet/bank-accounts/${accountId}`, {
+      method: 'DELETE',
     });
   }
 

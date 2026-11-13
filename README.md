@@ -65,6 +65,12 @@ The citizen portal is deployed on Vercel (Vue 3 + Vite). The Python FastAPI back
 - **Apple Pay / Google Pay**: Unified processor interface
 - **DR Bank Support**: 10 major banks with BIN prefix detection
 
+### Cédula Identity & Banking
+- **Cédula validation**: Accepts 11-12 digits (formatted `3-3-3-2`, e.g. `001-1234567-8`)
+- **Tokenized storage**: Cédula is stored as a hashed token, never in plain text
+- **Progressive identity**: Cédula verification unlocks Level 2 (Méritos Vinculados)
+- **Bank linking**: 10 Dominican banks (Banreservas, Popular, BHD, Scotiabank, BDI, Santa Cruz, Caribe, Cibao, La Nacional, La Vega Real)
+
 ### Telecom Integration
 - **DR Carriers**: Claro (45%), Altice (35%), Viva (18%)
 - **Number Portability**: INDOTEL lookup with caching

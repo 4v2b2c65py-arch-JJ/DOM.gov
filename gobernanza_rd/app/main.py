@@ -9,7 +9,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request, Background
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, EmailStr
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import get_settings
@@ -244,6 +244,11 @@ class IdentityEscalationRequest(BaseModel):
     verification_data: Dict[str, Any]
 
 
+class CedulaVerifyRequest(BaseModel):
+    cedula: str
+    jce_verification_id: Optional[str] = None
+
+
 class PaymentInitiateRequest(BaseModel):
     payment_type: PaymentType
     user_provided: Dict[str, Any]
@@ -381,6 +386,41 @@ async def logout(
     """Revoke current session"""
     await auth_service.revoke_session(session.id, "User logout")
     return {"success": True}
+
+
+@app.post("/auth/cedula/verify", response_model=Dict)
+async def verify_cedula(
+    request: CedulaVerifyRequest,
+    session: UserSession = Depends(get_current_session),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify a Dominican cédula (11-12 digits) and link it to the user."""
+    from utils.cedula import cedula_validation_error, normalize_cedula
+
+    validation_error = cedula_validation_error(request.cedula)
+    if validation_error:
+        raise HTTPException(status_code=400, detail=validation_error)
+
+    digits = normalize_cedula(request.cedula)
+    user.cedula_token = hash_string(digits)
+    user.cedula_verified = True
+    user.cedula_verified_at = datetime.utcnow()
+    user.jce_verification_id = request.jce_verification_id
+
+    if user.identity_level.value < IdentityLevel.MERIT_LINKED.value:
+        user.identity_level = IdentityLevel.MERIT_LINKED
+        session.identity_level = IdentityLevel.MERIT_LINKED
+        session.capabilities = AuthService.IDENTITY_CAPABILITIES.get(IdentityLevel.MERIT_LINKED, [])
+
+    await db.flush()
+
+    return {
+        "success": True,
+        "cedula_verified": True,
+        "identity_level": user.identity_level.value,
+        "capabilities": session.capabilities,
+    }
 
 
 # ==================== PAYMENT ENDPOINTS ====================

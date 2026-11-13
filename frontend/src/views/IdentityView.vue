@@ -3,10 +3,38 @@
  */
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
+import { cedulaValidationError, formatCedula, normalizeCedula } from '@/utils/cedula';
 
 const authStore = useAuthStore();
+
+const cedulaForm = reactive({ cedula: '' });
+const verifying = ref(false);
+const cedulaMessage = ref('');
+
+const cedulaError = computed(() => cedulaValidationError(cedulaForm.cedula));
+
+function onCedulaInput(event: Event) {
+  cedulaForm.cedula = formatCedula((event.target as HTMLInputElement).value);
+}
+
+async function verifyCedula() {
+  cedulaMessage.value = '';
+  if (cedulaError.value) {
+    cedulaMessage.value = cedulaError.value;
+    return;
+  }
+  verifying.value = true;
+  try {
+    const result = await authStore.verifyCedula(normalizeCedula(cedulaForm.cedula));
+    cedulaMessage.value = result.success
+      ? 'Cédula verificada correctamente.'
+      : result.error || 'No se pudo verificar la cédula.';
+  } finally {
+    verifying.value = false;
+  }
+}
 
 const levels = [
   { level: 0, label: 'Anónimo', icon: '👤', capabilities: ['Navegación anónima', 'Información pública'] },
@@ -58,6 +86,43 @@ function getProgressPercent(level: number) {
           <p class="text-sm text-gray-500 dark:text-gray-400">{{ levels[currentLevel].capabilities.length }} capacidades desbloqueadas</p>
         </div>
       </div>
+    </div>
+
+    <!-- Cédula verification -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-2xl">🪪</span>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Verificación de Cédula</h2>
+        <span
+          v-if="authStore.cedulaVerified"
+          class="ml-auto px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs"
+        >Verificada</span>
+      </div>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        La cédula (11 a 12 dígitos) habilita el nivel 2 y permite vincular cuentas bancarias para recibir pagos y subsidios.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input
+          v-model="cedulaForm.cedula"
+          type="text"
+          inputmode="numeric"
+          maxlength="14"
+          @input="onCedulaInput"
+          :disabled="verifying"
+          class="flex-1 px-4 py-3 rounded-lg border bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500"
+          :class="cedulaForm.cedula && cedulaError ? 'border-red-400' : 'border-gray-300 dark:border-gray-600'"
+          placeholder="001-1234567-8"
+        />
+        <button
+          @click="verifyCedula"
+          :disabled="verifying || !cedulaForm.cedula"
+          class="py-3 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors"
+        >
+          {{ verifying ? 'Verificando...' : 'Verificar cédula' }}
+        </button>
+      </div>
+      <p v-if="cedulaForm.cedula && cedulaError" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ cedulaError }}</p>
+      <p v-if="cedulaMessage" class="mt-2 text-sm text-gray-600 dark:text-gray-300">{{ cedulaMessage }}</p>
     </div>
 
     <!-- All Levels -->
