@@ -238,7 +238,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./node-telecaster
+        working-directory: ./gobernanza_rd/node-telecaster
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -248,7 +248,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: node-telecaster/package-lock.json
+          cache-dependency-path: gobernanza_rd/node-telecaster/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -288,8 +288,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./node-telecaster
-          file: ./node-telecaster/Dockerfile
+          context: ./gobernanza_rd/node-telecaster
+          file: ./gobernanza_rd/node-telecaster/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

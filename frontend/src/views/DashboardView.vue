@@ -7,12 +7,10 @@ import { onMounted, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useMeritsStore } from '@/stores/merits';
 import { useAirportStore } from '@/stores/airport';
-import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
 const meritsStore = useMeritsStore();
 const airportStore = useAirportStore();
-const router = useRouter();
 
 const identityLabels = ['Anónimo', 'Email Verificado', 'Méritos Vinculados', 'Biométrico', 'Confiable', 'Autorizado/Soeberano'];
 const identityIcons = ['👤', '✉️', '🏆', '🔐', '⭐', '👑'];
@@ -26,7 +24,7 @@ const quickActions = computed(() => [
   { label: 'Billetera Digital', icon: '💳', to: '/wallet', level: 2, color: 'amber' },
   { label: 'Gobernanza', icon: '⚖️', to: '/governance', level: 3, color: 'red' },
   { label: 'Identidad', icon: '🔐', to: '/identity', level: 0, color: 'gray' },
-]).filter(a => authStore.identityLevel >= a.level);
+].filter(a => authStore.identityLevel >= a.level));
 
 const nextLevel = computed(() => {
   if (authStore.identityLevel >= 5) return null;

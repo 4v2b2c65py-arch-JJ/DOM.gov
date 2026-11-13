@@ -6,11 +6,9 @@
 import { onMounted, ref, computed } from 'vue';
 import { useAirportStore } from '@/stores/airport';
 import { useAuthStore } from '@/stores/auth';
-import { useRouter } from 'vue-router';
 
 const airportStore = useAirportStore();
 const authStore = useAuthStore();
-const router = useRouter();
 
 const activeTab = ref<'my' | 'request' | 'verify'>('my');
 const requestForm = ref({

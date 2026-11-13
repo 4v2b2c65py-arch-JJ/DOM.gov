@@ -3,9 +3,11 @@
  */
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 
-const router = useRouter();
+const authStore = useAuthStore();
+const isAuthenticated = computed(() => authStore.isAuthenticated);
 </script>
 
 <template>

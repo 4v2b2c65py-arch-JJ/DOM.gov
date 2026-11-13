@@ -3,12 +3,10 @@
  */
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useMeritsStore } from '@/stores/merits';
-import { useAuthStore } from '@/stores/auth';
 
 const meritsStore = useMeritsStore();
-const authStore = useAuthStore();
 
 const selectedTab = ref<'balance' | 'history' | 'earn'>('balance');
 const earnForm = ref({ amount: 0, reason: '', metadata: {} });

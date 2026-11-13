@@ -3,9 +3,6 @@
  */
 
 <script setup lang="ts">
-import { ref } from 'vue';
-
-const comingSoon = ref(true);
 </script>
 
 <template>

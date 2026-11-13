@@ -53,7 +53,7 @@ export const useMeritsStore = defineStore('merits', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  const canAfford = computed((cost: number) => balance.value >= cost);
+  const canAfford = (cost: number) => balance.value >= cost;
   const utilityItems = computed(() => catalog.value.filter(i => i.category === 'utility'));
   const housingItems = computed(() => catalog.value.filter(i => i.category === 'housing'));
   const applianceItems = computed(() => catalog.value.filter(i => i.category === 'appliance'));

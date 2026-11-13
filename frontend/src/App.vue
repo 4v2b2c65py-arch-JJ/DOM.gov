@@ -10,7 +10,6 @@ import { useMeritsStore } from '@/stores/merits';
 import { useAirportStore } from '@/stores/airport';
 import TheHeader from '@/components/TheHeader.vue';
 import TheFooter from '@/components/TheFooter.vue';
-import router from '@/router';
 
 const authStore = useAuthStore();
 const meritsStore = useMeritsStore();
@@ -31,7 +30,7 @@ onMounted(async () => {
   // Check if we're on a protected route
   routerInstance.beforeEach((to, _from, next) => {
     const requiresAuth = to.meta.requiresAuth;
-    const minLevel = to.meta.minIdentityLevel || 0;
+    const minLevel = (to.meta.minIdentityLevel as number) || 0;
 
     if (requiresAuth && !authStore.isAuthenticated) {
       next('/login?redirect=' + to.fullPath);

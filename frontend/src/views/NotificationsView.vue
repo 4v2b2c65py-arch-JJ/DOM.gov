@@ -3,12 +3,19 @@
  */
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useAuthStore } from '@/stores/auth';
+import { ref, computed, onMounted } from 'vue';
 
-const authStore = useAuthStore();
-const notifications = ref([]);
-const loading = ref(false);
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  time: number;
+  read: boolean;
+  category: string;
+}
+
+const notifications = ref<Notification[]>([]);
 const selectedCategory = ref('all');
 
 const categories = ['all', 'méritos', 'pagos', 'selecting_front', 'quests', 'veeduría', 'entregas', 'ayuda_mutua', 'convivencia', 'gobernanza', 'identidad', 'sistema'];

@@ -22,5 +22,12 @@ export default defineConfigWithVueTs(
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
+  {
+    name: 'app/relaxed-typescript',
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
+
   skipFormatting,
 )

@@ -80,10 +80,10 @@ function getProgressPercent(level: number) {
       </div>
 
       <div class="flex items-center gap-4 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-        <span class="text-4xl">{{ levels[currentLevel].icon }}</span>
+        <span class="text-4xl">{{ levels[currentLevel]?.icon }}</span>
         <div>
-          <h3 class="font-semibold text-gray-900 dark:text-white">Nivel {{ currentLevel }}: {{ levels[currentLevel].label }}</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400">{{ levels[currentLevel].capabilities.length }} capacidades desbloqueadas</p>
+          <h3 class="font-semibold text-gray-900 dark:text-white">Nivel {{ currentLevel }}: {{ levels[currentLevel]?.label }}</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">{{ levels[currentLevel]?.capabilities?.length }} capacidades desbloqueadas</p>
         </div>
       </div>
     </div>

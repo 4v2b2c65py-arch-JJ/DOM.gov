@@ -109,7 +109,7 @@ class ApiClient {
     return data.user;
   }
 
-  async getMe() {
+  async getMe(): Promise<any> {
     return this.request('/api/users/me');
   }
 
@@ -123,38 +123,38 @@ class ApiClient {
     return this.request<{ balance: number; total_earned: number; total_spent: number }>('/api/merits/balance');
   }
 
-  async earnMerits(amount: number, reason: string, metadata?: any) {
+  async earnMerits(amount: number, reason: string, metadata?: any): Promise<any> {
     return this.request('/api/merits/earn', {
       method: 'POST',
       body: JSON.stringify({ amount, reason, metadata }),
     });
   }
 
-  async spendMerits(amount: number, item: string, metadata?: any) {
+  async spendMerits(amount: number, item: string, metadata?: any): Promise<any> {
     return this.request('/api/merits/spend', {
       method: 'POST',
       body: JSON.stringify({ amount, item, metadata }),
     });
   }
 
-  async getMeritHistory(limit = 50, offset = 0) {
+  async getMeritHistory(limit = 50, offset = 0): Promise<any> {
     return this.request(`/api/merits/history?limit=${limit}&offset=${offset}`);
   }
 
   // ==================== SELECTING FRONT ====================
 
-  async getSelectingFrontCatalog() {
+  async getSelectingFrontCatalog(): Promise<any> {
     return this.request('/api/selecting-front/catalog');
   }
 
-  async placeOrder(itemId: string, quantity = 1) {
+  async placeOrder(itemId: string, quantity = 1): Promise<any> {
     return this.request('/api/selecting-front/order', {
       method: 'POST',
       body: JSON.stringify({ item_id: itemId, quantity }),
     });
   }
 
-  async getOrders(status?: string) {
+  async getOrders(status?: string): Promise<any> {
     return this.request(`/api/selecting-front/orders${status ? `?status=${status}` : ''}`);
   }
 
@@ -259,25 +259,47 @@ class ApiClient {
 
   // ==================== AIRPORT ====================
 
-  async requestAirportClearance(data: any) {
+  async requestAirportClearance(data: any): Promise<any> {
     return this.request('/api/airport/clearance', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async getAirportClearance(clearanceId: string) {
+  async getAirportClearance(clearanceId: string): Promise<any> {
     return this.request(`/api/airport/clearance/${clearanceId}`);
   }
 
-  async getMyClearances() {
+  async getMyClearances(): Promise<any> {
     return this.request('/api/airport/clearance/user/me');
   }
 
-  async verifyQRCode(qrCode: string, airportCode: string) {
+  async verifyQRCode(qrCode: string, airportCode: string): Promise<any> {
     return this.request('/api/airport/verify/qr', {
       method: 'POST',
       body: JSON.stringify({ qr_code: qrCode, airport_code: airportCode }),
+    });
+  }
+
+  async getAirports(): Promise<any> {
+    return this.request('/api/airport/airports');
+  }
+
+  async getGrades(): Promise<any> {
+    return this.request('/api/airport/grades');
+  }
+
+  async processCheckpoint(clearanceId: string, checkpoint: string, scanData: any): Promise<any> {
+    return this.request('/api/airport/checkpoint', {
+      method: 'POST',
+      body: JSON.stringify({ clearance_id: clearanceId, checkpoint, scan_data: scanData }),
+    });
+  }
+
+  async cancelClearance(clearanceId: string, reason: string): Promise<any> {
+    return this.request(`/api/airport/clearance/${clearanceId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     });
   }
 
@@ -300,7 +322,7 @@ class ApiClient {
     return this.request('/api/users/identity-level');
   }
 
-  async escalateIdentity(targetLevel: number, verificationData: any) {
+  async escalateIdentity(targetLevel: number, verificationData: any): Promise<any> {
     return this.request('/api/users/escalate-identity', {
       method: 'POST',
       body: JSON.stringify({ target_level: targetLevel, ...verificationData }),
@@ -348,7 +370,7 @@ class ApiClient {
 
   // ==================== BANK ACCOUNTS ====================
 
-  async getBankAccounts() {
+  async getBankAccounts(): Promise<any> {
     return this.request<{ accounts: Array<Record<string, unknown>> }>('/api/wallet/bank-accounts');
   }
 
