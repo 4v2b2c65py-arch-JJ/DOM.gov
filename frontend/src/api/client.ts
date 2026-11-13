@@ -5,7 +5,6 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const TELECASTER_BASE = import.meta.env.VITE_TELECASTER_URL || 'http://localhost:3001';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws';
 
 class ApiClient {
   private token: string | null = null;
