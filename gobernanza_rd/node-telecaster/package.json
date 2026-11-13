@@ -36,7 +36,9 @@
     "node-cron": "^3.0.3",
     "ws": "^8.14.2",
     "protobufjs": "^7.2.5",
-    "protobuf": "^3.21.2"
+    "compression": "^1.7.4",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.1.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",
