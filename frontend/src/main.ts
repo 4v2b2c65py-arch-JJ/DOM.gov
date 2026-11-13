@@ -1,5 +1,4 @@
 import './assets/main.css'
-import 'virtual:uno.css'  // UnoCSS (if using) or use Tailwind via Vite
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
