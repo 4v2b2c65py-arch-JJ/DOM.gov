@@ -71,6 +71,14 @@ The citizen portal is deployed on Vercel (Vue 3 + Vite). The Python FastAPI back
 - **Progressive identity**: Cédula verification unlocks Level 2 (Méritos Vinculados)
 - **Bank linking**: 10 Dominican banks (Banreservas, Popular, BHD, Scotiabank, BDI, Santa Cruz, Caribe, Cibao, La Nacional, La Vega Real)
 
+### Local Cédula Cross-Verification
+- **Credential**: `gobernanza_rd/.env.local` + `gobernanza_rd/credentials/cedula.local.json` (gitignored)
+- **Deterministic checks**: 11-12 digits, official Luhn check digit, `CV########` barcode
+- **Local AI**: Ollama (`llama3.2`) via `gobernanza_rd/cedula_verifier.py`
+- **CLI**: `cd gobernanza_rd && python3 verify_cedula.py`
+- **Local service**: `uvicorn cedula_verifier:app --host 127.0.0.1 --port 8001`
+- **Vercel serverless**: `POST /api/cedula-cross-verify`
+
 ### Telecom Integration
 - **DR Carriers**: Claro (45%), Altice (35%), Viva (18%)
 - **Number Portability**: INDOTEL lookup with caching

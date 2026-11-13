@@ -315,6 +315,35 @@ class ApiClient {
     );
   }
 
+  async crossVerifyCedula(cedula: string, barcode: string) {
+    const response = await fetch('/api/cedula-cross-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cedula, barcode }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Cross-verification failed (HTTP ${response.status})`);
+    }
+
+    return response.json();
+  }
+
+  async localCrossVerifyCedula(cedula: string, barcode: string) {
+    const base = import.meta.env.VITE_CEDULA_VERIFY_URL || 'http://localhost:8001';
+    const response = await fetch(`${base}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cedula, barcode }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Local verifier failed (HTTP ${response.status})`);
+    }
+
+    return response.json();
+  }
+
   // ==================== BANK ACCOUNTS ====================
 
   async getBankAccounts() {

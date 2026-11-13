@@ -59,6 +59,22 @@ const loadingAccounts = ref(false);
 const error = ref<string | null>(null);
 const success = ref<string | null>(null);
 
+type CrossCheck = {
+  valid: boolean;
+  maskedCedula?: string;
+  checks: {
+    format: boolean;
+    checkDigit: { valid: boolean; expected: number | null; actual: number | null };
+    barcode: boolean;
+  };
+};
+
+const crossForm = reactive({ cedula: '', barcode: '' });
+const crossLoading = ref(false);
+const crossError = ref<string | null>(null);
+const crossResult = ref<CrossCheck | null>(null);
+const localAiVerdict = ref<string | null>(null);
+
 const cedulaError = computed(() => cedulaValidationError(cedulaForm.cedula));
 const accountCedulaError = computed(() =>
   accountForm.cedula ? cedulaValidationError(accountForm.cedula) : '',
@@ -173,6 +189,43 @@ async function removeAccount(id: string) {
   }
 }
 
+function onBarcodeInput(event: Event) {
+  crossForm.barcode = (event.target as HTMLInputElement).value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+async function runCrossVerification() {
+  crossError.value = null;
+  crossResult.value = null;
+  localAiVerdict.value = null;
+  crossLoading.value = true;
+
+  try {
+    crossResult.value = (await api.crossVerifyCedula(crossForm.cedula, crossForm.barcode)) as CrossCheck;
+  } catch (e: unknown) {
+    crossError.value = e instanceof Error ? e.message : 'No se pudo verificar en el servidor.';
+  }
+
+  try {
+    const local = (await api.localCrossVerifyCedula(crossForm.cedula, crossForm.barcode)) as {
+      local_ai?: {
+        available?: boolean;
+        verdict?: { valid?: boolean; reason?: string };
+        error?: string;
+      };
+    };
+    if (local.local_ai?.available && local.local_ai.verdict) {
+      const verdict = local.local_ai.verdict;
+      localAiVerdict.value = `${verdict.valid ? 'Válida' : 'No válida'} — ${verdict.reason || 'sin detalle'}`;
+    } else if (local.local_ai?.error) {
+      localAiVerdict.value = 'IA local no disponible';
+    }
+  } catch {
+    localAiVerdict.value = 'IA local no disponible';
+  } finally {
+    crossLoading.value = false;
+  }
+}
+
 onMounted(loadAccounts);
 </script>
 
@@ -235,6 +288,72 @@ onMounted(loadAccounts);
       <p v-if="authStore.cedula" class="mt-3 text-xs text-gray-500 dark:text-gray-400">
         Cédula almacenada de forma tokenizada: {{ maskCedula(authStore.cedula) }}
       </p>
+    </div>
+
+    <!-- Cross verification (server + local AI) -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="text-2xl">🔎</span>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Verificación Cruzada</h2>
+      </div>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Valida la cédula contra el dígito verificador oficial (Luhn) y el código de barras.
+        Si el servicio local está activo, también se consulta el modelo de IA local.
+      </p>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <label for="crossCedula" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cédula</label>
+          <input
+            id="crossCedula"
+            v-model="crossForm.cedula"
+            type="text"
+            inputmode="numeric"
+            maxlength="14"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500"
+            placeholder="402-0609352-7"
+          />
+        </div>
+        <div>
+          <label for="crossBarcode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Código de barras</label>
+          <input
+            id="crossBarcode"
+            :value="crossForm.barcode"
+            type="text"
+            maxlength="10"
+            @input="onBarcodeInput"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500"
+            placeholder="CV01253404"
+          />
+        </div>
+      </div>
+
+      <button
+        @click="runCrossVerification"
+        :disabled="crossLoading || !crossForm.cedula || !crossForm.barcode"
+        class="mt-4 py-3 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-lg transition-colors"
+      >
+        {{ crossLoading ? 'Verificando...' : 'Ejecutar verificación cruzada' }}
+      </button>
+
+      <div v-if="crossError" class="mt-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+        {{ crossError }}
+      </div>
+
+      <div v-if="crossResult" class="mt-4 p-4 rounded-lg border" :class="crossResult.valid ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'">
+        <p class="font-semibold" :class="crossResult.valid ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'">
+          {{ crossResult.valid ? 'Cédula válida' : 'Cédula no válida' }}
+        </p>
+        <div class="mt-2 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+          <p>Formato (11-12 dígitos): {{ crossResult.checks.format ? 'OK' : 'Error' }}</p>
+          <p>
+            Dígito verificador: esperado {{ crossResult.checks.checkDigit.expected ?? '—' }},
+            recibido {{ crossResult.checks.checkDigit.actual ?? '—' }}
+          </p>
+          <p>Código de barras: {{ crossResult.checks.barcode ? 'válido' : 'inválido' }}</p>
+          <p v-if="localAiVerdict">IA local: {{ localAiVerdict }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- Bank account form -->
