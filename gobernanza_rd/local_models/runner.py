@@ -80,8 +80,8 @@ class BaseModelRunner(ABC):
         pass
     
     @abstractmethod
-    async def generate_stream(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> AsyncGenerator[str, None]:
-        pass
+    def generate_stream(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> AsyncGenerator[str, None]:
+        ...
     
     @abstractmethod
     async def health_check(self) -> bool:
@@ -308,7 +308,7 @@ class VLLMRunner(BaseModelRunner):
         # vLLM uses same API as llama.cpp
         return await LlamaCppRunner.generate(self, prompt, system_prompt, **kwargs)
     
-    async def generate_stream(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> AsyncGenerator[str, None]:
+    def generate_stream(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> AsyncGenerator[str, None]:
         return LlamaCppRunner.generate_stream(self, prompt, system_prompt, **kwargs)
     
     async def health_check(self) -> bool:
@@ -458,7 +458,7 @@ def create_runner(config: ModelConfig) -> BaseModelRunner:
         ModelProvider.COHERE: ExternalModelRunner,
     }
     
-    runner_class = runners.get(config.provider)
+    runner_class: Any = runners.get(config.provider)
     if not runner_class:
         raise ValueError(f"No runner for provider: {config.provider}")
     
@@ -475,8 +475,8 @@ class ModelRunnerPool:
     
     async def add_runner(self, runner_id: str, config: ModelConfig, is_primary: bool = False):
         runner = create_runner(config)
-        async with runner:
-            healthy = await runner.health_check()
+        await runner.__aenter__()
+        healthy = await runner.health_check()
         if not healthy:
             logger.warning(f"Runner {runner_id} health check failed", provider=config.provider, model=config.model_name)
         
@@ -488,6 +488,13 @@ class ModelRunnerPool:
             if config.role not in self.backups:
                 self.backups[config.role] = []
             self.backups[config.role].append(runner_id)
+
+    async def close_all(self) -> None:
+        for runner in self.runners.values():
+            try:
+                await runner.__aexit__(None, None, None)
+            except Exception as exc:
+                logger.warning("runner_close_failed", error=str(exc))
     
     async def get_runner(self, role: str) -> Optional[BaseModelRunner]:
         """Get best available runner for role"""

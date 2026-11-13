@@ -585,7 +585,7 @@ class AuditTrailService:
         "polygon": {"method": "contract_storage"}
     }
     
-    def __init__(self, db: AsyncSession, trace_logger: TraceLogger):
+    def __init__(self, db: Optional[AsyncSession] = None, trace_logger: Optional[TraceLogger] = None):
         self.db = db
         self.trace_logger = trace_logger
         self.last_hash = None
@@ -598,8 +598,16 @@ class AuditTrailService:
                         actor_ip_hash: Optional[str] = None,
                         actor_device_fingerprint: Optional[str] = None,
                         target_type: Optional[str] = None,
-                        target_id: Optional[uuid.UUID] = None) -> AuditRecord:
+                        target_id: Optional[uuid.UUID] = None) -> Optional[AuditRecord]:
         """Log event to immutable audit trail"""
+        
+        if self.db is None:
+            logger.info(
+                "audit_event",
+                event_type=getattr(event_type, "value", event_type),
+                event_data=event_data,
+            )
+            return None
         
         self.sequence += 1
         

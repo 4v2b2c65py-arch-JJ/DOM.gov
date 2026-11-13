@@ -2,7 +2,7 @@
 import enum
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey, Index, UniqueConstraint, Enum as SQLEnum, Numeric, JSON, Integer, CheckConstraint
+from sqlalchemy import Column, String, DateTime, Boolean, Text, ForeignKey, Index, UniqueConstraint, Enum as SQLEnum, Numeric, JSON, Integer, CheckConstraint, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship, declared_attr
 from models.database import Base, SoftDeleteMixin, AuditMixin

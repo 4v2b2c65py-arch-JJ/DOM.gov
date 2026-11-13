@@ -26,17 +26,6 @@ settings = get_settings()
 logger = structlog.get_logger()
 
 
-class DeliveryType(str, Enum):
-    HOUSING_KEYS = "housing_keys"
-    APPLIANCE = "appliance"
-    UTILITY_EQUIPMENT = "utility_equipment"
-    FOOD_PACKAGE = "food_package"
-    EMERGENCY_SUPPLIES = "emergency_supplies"
-    MUTUAL_AID = "mutual_aid"
-    DOCUMENTS = "documents"
-    SELECTING_FRONT = "selecting_front"
-
-
 @dataclass
 class ResolvedLocation:
     """Complete delivery location with GPS and community references"""
@@ -649,7 +638,7 @@ class AddressSyncService:
         return any(old.get(f) != new.get(f) for f in key_fields)
     
     async def _get_current_address(self, cedula: str, source: str) -> Dict:
-        pass
+        return {}
     
     async def _update_address(self, cedula: str, source: str, data: Dict):
         pass

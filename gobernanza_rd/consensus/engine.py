@@ -13,7 +13,7 @@ from collections import defaultdict
 import structlog
 
 from config.settings import get_settings
-from local_models.runner import ModelRunnerPool, ModelConfig, ModelProvider, ModelResponse, create_runner
+from local_models.runner import ModelRunnerPool, ModelConfig, ModelProvider, ModelResponse, BaseModelRunner, create_runner
 from models import ConsensusDecision, AuditRecord, AuditEventType, ModelRotationLog, CircuitBreakerEvent
 
 settings = get_settings()

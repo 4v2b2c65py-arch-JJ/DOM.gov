@@ -21,11 +21,11 @@ from models.infrastructure_personnel import (
     GlobalContractor, InfrastructureProject, ProjectMilestone, ProjectPayment,
     Personnel, LeaveRequest,
     ContractorStatus, ContractorTier, ProjectStatus, ProjectFundingModel,
-    PersonnelTier, PersonnelStatus, LeaveType, LeaveStatus
+    PersonnelTier, PersonnelStatus, LeaveType, LeaveStatus, AccountabilityLayer
 )
 from models.audit_governance import (
     AuditRecord, ConsensusDecision, ModelRotationLog, CircuitBreakerEvent, FGAGovernanceAction,
-    AuditEventType, AccountabilityLayer
+    AuditEventType
 )
 
 __all__ = [

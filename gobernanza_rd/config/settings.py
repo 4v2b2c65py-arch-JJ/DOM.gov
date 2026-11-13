@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
-    SECRET_KEY: str = Field(default="dev-secret-change-in-production", min_length=32)
+    SECRET_KEY: str = Field(default="dev-secret-change-in-production-32", min_length=32)
     
     # Server
     HOST: str = "0.0.0.0"

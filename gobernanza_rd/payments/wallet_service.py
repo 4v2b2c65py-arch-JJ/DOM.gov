@@ -55,10 +55,11 @@ class WalletPaymentResult:
 class ApplePayProcessor:
     """Processes Apple Pay payments via Payment Service Provider"""
     
-    def __init__(self, psp_config: Dict, central_fund, trace_logger: TraceLogger):
+    def __init__(self, psp_config: Dict, central_fund, trace_logger: TraceLogger, fraud_detector):
         self.psp_config = psp_config
         self.central_fund = central_fund
         self.trace_logger = trace_logger
+        self.fraud_detector = fraud_detector
         self.merchant_id = psp_config.get("apple_pay_merchant_id")
     
     async def process_payment(self, request: WalletPaymentRequest, user: User, session: UserSession) -> WalletPaymentResult:
@@ -194,7 +195,9 @@ class ApplePayProcessor:
             gov_api_responses=result.gov_responses if hasattr(result, 'gov_responses') else {},
             gov_transaction_ids=result.transaction_ids if hasattr(result, 'transaction_ids') else {},
             description=f"Apple Pay: {request.payment_type.value}",
+            payment_number=f"pay_{uuid.uuid4().hex[:16]}",
             trace_id=self._generate_trace_id(),
+            trace_hash="",
             wallet_type="apple_pay",
             biometric_verified=True,
             merit_earned=result.merit_earned if hasattr(result, 'merit_earned') else 0
@@ -221,10 +224,11 @@ class ApplePayProcessor:
 class GooglePayProcessor:
     """Processes Google Pay payments via PSP"""
     
-    def __init__(self, psp_config: Dict, central_fund, trace_logger: TraceLogger):
+    def __init__(self, psp_config: Dict, central_fund, trace_logger: TraceLogger, fraud_detector):
         self.psp_config = psp_config
         self.central_fund = central_fund
         self.trace_logger = trace_logger
+        self.fraud_detector = fraud_detector
         self.gateway = psp_config.get("google_pay_gateway", "braintree")
         self.gateway_merchant_id = psp_config.get("google_pay_gateway_merchant_id")
     
@@ -323,13 +327,19 @@ class GooglePayProcessor:
         return card_info.get("issuer") in supported_issuers
     
     async def _build_auto_filled_payment(self, request: WalletPaymentRequest, user: User, session: UserSession, card_info: Dict) -> Dict:
+        token = request.payment_token
+        if isinstance(token, str):
+            try:
+                token = json.loads(token)
+            except (TypeError, ValueError):
+                token = {}
         return {
             **request.user_provided,
             "_wallet_type": "google_pay",
             "_card_token": card_info["token"],
             "_card_network": card_info["network"],
             "_card_issuer": card_info["issuer"],
-            "_biometric_verified": payment_token.get("authMethod") == "CRYPTOGRAM_3DS"
+            "_biometric_verified": isinstance(token, dict) and token.get("authMethod") == "CRYPTOGRAM_3DS"
         }
     
     async def _create_payment_record(self, user: User, session: UserSession, request: WalletPaymentRequest,
@@ -354,7 +364,9 @@ class GooglePayProcessor:
             gov_api_responses=result.gov_responses if hasattr(result, 'gov_responses') else {},
             gov_transaction_ids=result.transaction_ids if hasattr(result, 'transaction_ids') else {},
             description=f"Google Pay: {request.payment_type.value}",
+            payment_number=f"pay_{uuid.uuid4().hex[:16]}",
             trace_id=self._generate_trace_id(),
+            trace_hash="",
             wallet_type="google_pay",
             biometric_verified=auto_filled.get("_biometric_verified", False),
             merit_earned=result.merit_earned if hasattr(result, 'merit_earned') else 0

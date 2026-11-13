@@ -86,6 +86,7 @@ class PaymentAutoFillEngine:
     def __init__(self, gov_connector: GovAPIConnectorManager, merit_service: MeritService):
         self.gov_connector = gov_connector
         self.merit_service = merit_service
+        self.db: Optional[AsyncSession] = None
     
     async def auto_fill_payment(self, payment_type: PaymentType, user: User, 
                                 session: UserSession, user_provided: Dict) -> Dict:
@@ -220,8 +221,10 @@ class PaymentAutoFillEngine:
     async def _auto_fill_quest_stipend(self, data: Dict, user: User) -> Dict:
         """Auto-fill Quest stipend"""
         try:
+            if self.db is None:
+                return data
             from services.quest_service import QuestService
-            quest_service = QuestService(self.db)  # Would need DB injection
+            quest_service = QuestService(self.db)
             quest = await quest_service.get_active_quest(user.id)
             if quest:
                 data.setdefault("amount", str(quest.daily_stipend * quest.days_completed))
@@ -235,6 +238,8 @@ class PaymentAutoFillEngine:
     async def _auto_fill_mutual_aid(self, data: Dict, user: User) -> Dict:
         """Auto-fill mutual aid limits"""
         try:
+            if self.db is None:
+                return data
             from services.mutual_aid_service import MutualAidService
             mutual_aid_service = MutualAidService(self.db)
             limits = await mutual_aid_service.get_limits(user.id)
@@ -287,6 +292,7 @@ class PaymentService:
         self.fraud_detector = fraud_detector
         self.trace_logger = trace_logger
         self.merit_service = merit_service
+        self.auto_fill_engine.db = db
     
     async def initiate_payment(self, user: User, session: UserSession, 
                                payment_type: PaymentType, user_provided: Dict) -> Dict:
@@ -333,7 +339,7 @@ class PaymentService:
         }
         
         # Generate confirmation token
-        confirmation_token = self._generate_confirmation_token(user.id, payment_type, auto_filled)
+        confirmation_token = self._generate_confirmation_token(user.id, payment_type, auto_filled, risk_score.score)
         
         return {
             "success": True,
@@ -358,7 +364,7 @@ class PaymentService:
             return {"success": False, "reason": "Token user mismatch"}
         
         # Biometric check for high amounts
-        amount = Decimal(auto_filled.get("amount", "0"))
+        amount = Decimal(str(auto_filled.get("amount") or "0"))
         if amount > 10000 and not biometric_verified:  # > RD$10,000
             return {"success": False, "reason": "Biometric verification required for amounts over RD$10,000"}
         
@@ -379,8 +385,10 @@ class PaymentService:
             user_provided_data=token_data.get("user_provided", {}),
             description=auto_filled.get("description", f"Payment: {payment_type.value}"),
             reference=auto_filled.get("reference"),
-            risk_score=risk_score.score if 'risk_score' in locals() else 0,
-            trace_id=self._generate_trace_id()
+            risk_score=token_data.get("risk_score", 0),
+            payment_number=f"pay_{uuid.uuid4().hex[:16]}",
+            trace_id=self._generate_trace_id(),
+            trace_hash=""
         )
         
         self.db.add(payment)
@@ -400,7 +408,8 @@ class PaymentService:
             if result.merit_earned > 0:
                 await self.merit_service.add_merits(
                     user.id, MeritEventType.UTILITY_PAYMENT_RESPONSIBLE,
-                    result.merit_earned, f"Payment: {payment_type.value}", payment.id
+                    result.merit_earned, f"Payment: {payment_type.value}", payment.id,
+                    db=self.db
                 )
         else:
             payment.status = PaymentStatus.FAILED
@@ -488,7 +497,7 @@ class PaymentService:
         }.get(identity_level.value, 1.0)
         return int(base * multiplier)
     
-    def _generate_confirmation_token(self, user_id: uuid.UUID, payment_type: PaymentType, auto_filled: Dict) -> str:
+    def _generate_confirmation_token(self, user_id: uuid.UUID, payment_type: PaymentType, auto_filled: Dict, risk_score: float = 0) -> str:
         """Generate secure confirmation token"""
         import base64
         import json
@@ -496,6 +505,7 @@ class PaymentService:
             "user_id": str(user_id),
             "payment_type": payment_type.value,
             "auto_filled": auto_filled,
+            "risk_score": risk_score,
             "exp": (datetime.utcnow() + timedelta(minutes=10)).timestamp()
         }
         return base64.urlsafe_b64encode(json.dumps(data).encode()).decode()

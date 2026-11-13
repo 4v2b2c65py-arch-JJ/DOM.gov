@@ -9,27 +9,29 @@ from fastapi import FastAPI, Depends, HTTPException, status, Request, Background
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, EmailStr
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import get_settings
 from models.database import get_db, init_db, close_db
-from models import User, UserSession, IdentityLevel, PaymentType, PaymentStatus, PaymentMethod
+from models import User, UserSession, IdentityLevel, PaymentType, PaymentStatus, PaymentMethod, AuditRecord
 from auth.service import AuthService, AuthContext, SessionResult
 from payments.service import PaymentService, PaymentAutoFillEngine
-from payments.wallet_service import DigitalWalletService, WalletPaymentRequest, WalletType
-from address.service import AddressResolutionEngine, QuestPreVerificationService, CommunityDeliveryNetwork
+from payments.wallet_service import DigitalWalletService, ApplePayProcessor, GooglePayProcessor, WalletPaymentRequest, WalletType
+from address.service import (
+    AddressResolutionEngine, QuestPreVerificationService, CommunityDeliveryNetwork, DeliveryType
+)
 from telecom.service import DRTelecomService, MessageChannel
 from consensus.engine import ConsensusEngine, ProposalSeverity
 from governance.anti_faction import (
-    FGAAuditService, CircuitBreakerService, FairnessMonitor, AuditTrailService
+    FGAAuditService, CircuitBreakerService, FairnessMonitor, AuditTrailService, CircuitBreakerTrigger
 )
 from services.gov_api_connectors import GovAPIConnectorManager
 from services.central_ai_fund import CentralAIFundExecutor
 from services.merit_service import MeritService
 from services.fraud_detection import FraudDetector
 from services.trace_logger import TraceLogger
-from local_models.runner import ModelRunnerPool
+from local_models.runner import ModelRunnerPool, ModelConfig, ModelProvider
 from utils.crypto import hash_string
 
 settings = get_settings()
@@ -76,30 +78,30 @@ async def lifespan(app: FastAPI):
         # Ollama
         await runner_pool.add_runner(
             "ollama_llama3_70b",
-            type('Config', (), {
-                'provider': 'ollama',
-                'model_name': 'llama3.1:70b',
-                'role': 'primary_reasoner',
-                'base_url': settings.OLLAMA_BASE_URL,
-                'max_tokens': 4096,
-                'temperature': 0.1,
-                'timeout': settings.LOCAL_MODEL_TIMEOUT
-            })(),
+            ModelConfig(
+                provider=ModelProvider.OLLAMA,
+                model_name='llama3.1:70b',
+                role='primary_reasoner',
+                base_url=settings.OLLAMA_BASE_URL,
+                max_tokens=4096,
+                temperature=0.1,
+                timeout=settings.LOCAL_MODEL_TIMEOUT,
+            ),
             is_primary=True
         )
         
         # llama.cpp
         await runner_pool.add_runner(
             "llamacpp_nemotron",
-            type('Config', (), {
-                'provider': 'llama_cpp',
-                'model_name': 'nemotron-3-ultra',
-                'role': 'validator',
-                'base_url': settings.LLAMA_CPP_SERVER_URL,
-                'max_tokens': 4096,
-                'temperature': 0.1,
-                'timeout': settings.LOCAL_MODEL_TIMEOUT
-            })()
+            ModelConfig(
+                provider=ModelProvider.LLAMA_CPP,
+                model_name='nemotron-3-ultra',
+                role='validator',
+                base_url=settings.LLAMA_CPP_SERVER_URL,
+                max_tokens=4096,
+                temperature=0.1,
+                timeout=settings.LOCAL_MODEL_TIMEOUT,
+            )
         )
     
     # Initialize core services
@@ -124,6 +126,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down GobernanzaRD platform...")
+    await runner_pool.close_all()
     await close_db()
     logger.info("Shutdown complete")
 
@@ -192,8 +195,14 @@ def get_payment_service_dep(db: AsyncSession = Depends(get_db)) -> PaymentServic
 
 
 def get_wallet_service_dep(db: AsyncSession = Depends(get_db)) -> DigitalWalletService:
-    # Would initialize with proper processors
-    return DigitalWalletService(db, None, None, trace_logger, fraud_detector)
+    psp_config = {
+        "apple_pay_merchant_id": settings.APPLE_PAY_MERCHANT_ID,
+        "google_pay_gateway": settings.GOOGLE_PAY_GATEWAY,
+        "google_pay_gateway_merchant_id": settings.GOOGLE_PAY_GATEWAY_MERCHANT_ID,
+    }
+    apple_processor = ApplePayProcessor(psp_config, central_fund, trace_logger, fraud_detector)
+    google_processor = GooglePayProcessor(psp_config, central_fund, trace_logger, fraud_detector)
+    return DigitalWalletService(db, apple_processor, google_processor, trace_logger, fraud_detector)
 
 
 def get_address_engine_dep(db: AsyncSession = Depends(get_db)) -> AddressResolutionEngine:
