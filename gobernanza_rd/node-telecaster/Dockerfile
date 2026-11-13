@@ -18,10 +18,8 @@ RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 COPY src/ ./src/
 
 # Create non-root user
-RUN addgroup -g 1000 -S appgroup && \
-    adduser -u 1000 -S appuser -G appgroup && \
-    chown -R appuser:appgroup /app
-USER appuser
+RUN chown -R node:node /app
+USER node
 
 # Expose port
 EXPOSE 3001
