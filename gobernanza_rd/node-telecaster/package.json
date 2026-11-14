@@ -32,7 +32,7 @@
     "helmet": "^7.1.0",
     "express-rate-limit": "^7.1.5",
     "jsonwebtoken": "^9.0.2",
-    "uuid": "^9.0.1",
+    "uuid": "^11.1.1",
     "node-cron": "^3.0.3",
     "ws": "^8.14.2",
     "protobufjs": "^7.2.5",
@@ -47,5 +47,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }
